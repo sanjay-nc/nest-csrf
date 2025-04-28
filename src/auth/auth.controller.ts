@@ -1,30 +1,35 @@
 // src/auth/auth.controller.ts
-import { Controller, Post, Body, Req, Res, HttpStatus } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Controller, Post, Get, Body, Req, Res, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { Request, Response } from 'express';
+import { ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { LoginDto } from './dto/login.dto';  // Import the DTO
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
-  async login(@Body() body: any, @Req() req: Request, @Res() res: Response) {
-    const { username, password } = body;
+  @Get('/csrf')
+  @ApiResponse({ status: 200, description: 'Returns CSRF token' })
+  getToken(@Req() req: Request, @Res() res: Response) {
+    const token = res.locals.generateCsrfToken();
+    res.status(HttpStatus.OK).json({ csrfToken: token });
+  }
 
-    // Validate credentials via AuthService
-    const user = this.authService.validateCredentials(username, password);
+  @Post('/login')
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: 'Successful login' })
+  @ApiResponse({ status: 403, description: 'Invalid CSRF token' })
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
+  }
 
-    if (user) {
-      // Successful login
-      return res.status(HttpStatus.OK).json({
-        message: 'Login successful 🔓',
-        user,
-      });
-    } else {
-      // Failed login attempt
-      return res.status(HttpStatus.UNAUTHORIZED).json({
-        message: 'Invalid credentials 🛑',
-      });
-    }
+  @Post('/register')
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({ status: 400, description: 'Username already exists' })
+  async register(@Body() loginDto: LoginDto) {
+    return this.authService.register(loginDto);
   }
 }
